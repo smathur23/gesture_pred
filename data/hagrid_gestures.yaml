@@ -1,0 +1,15 @@
+path: yolo
+train: images/train
+val: images/val
+test: images/test
+names:
+  0: like
+  1: dislike
+  2: mute
+  3: ok
+  4: peace
+  5: rock
+  6: three_gun
+  7: middle_finger
+  8: hand_heart
+  9: no_gesture
