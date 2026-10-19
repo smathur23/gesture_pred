@@ -3,6 +3,10 @@ __pycache__/
 *.pyc
 
 data/raw/
+data/hagrid_subset/
+data/yolo/
 runs/
 vendor/
+.vscode/
+*.pt
 

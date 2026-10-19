@@ -124,17 +124,42 @@ python scripts/train_yolov13.py --data data/hagrid_gestures.yaml --model yolov13
 Run app:
 
 ```powershell
+python app/main.py --model auto
+```
+
+Use an explicit checkpoint:
+
+```powershell
 python app/main.py --model runs/detect/mvp_3000/weights/best.pt
 ```
 
-Works before final training too, as long as a valid model path is provided:
+Use webcam + mirror + controls overlay:
 
 ```powershell
-python app/main.py --model yolov13s.pt
+python app/main.py --model auto --source 0 --mirror --show-controls
+```
+
+Check visible webcam indices:
+
+```powershell
+python app/main.py --list-cameras
+```
+
+Record the processed output:
+
+```powershell
+python app/main.py --model auto --source 0 --record-out runs/webcam/session1.mp4
 ```
 
 Controls:
 - Press `q` to quit.
+- Press `b` to toggle detection boxes.
+- Press `e` to toggle gesture effects.
+- Press `m` to toggle mirror mode.
+- Press `h` to toggle controls overlay.
+
+WSL note:
+- If webcam fails in WSL2 with camera index errors, run the app from native Windows Python/Conda for webcam access, or provide a video file via `--source path/to/video.mp4`.
 
 Display includes:
 - Bounding boxes
@@ -169,4 +194,4 @@ Covered:
 - bbox conversion (`COCO xywh -> YOLO cxcywh`)
 - sampling constraints
 - smoothing stability/cooldown/no-gesture suppression
-
+- automatic model checkpoint selection

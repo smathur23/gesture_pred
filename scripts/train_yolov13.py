@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import tempfile
 from pathlib import Path
+import yaml
 
 
 def parse_args() -> argparse.Namespace:
@@ -18,18 +20,30 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def resolve_model(model_arg: str) -> tuple[str, str | None]:
+def resolve_model(model_arg: str) -> str:
     model_path = Path(model_arg)
     if model_path.exists():
-        return str(model_path), None
+        return str(model_path)
     vendor_small_yaml = Path("vendor/yolov13/ultralytics/cfg/models/v13/yolov13s.yaml")
     vendor_yaml = Path("vendor/yolov13/ultralytics/cfg/models/v13/yolov13.yaml")
     if model_arg.lower() in {"yolov13s", "yolov13s.pt", "yolov13.yaml"}:
         if vendor_small_yaml.exists():
-            return str(vendor_small_yaml), None
+            return str(vendor_small_yaml)
         if vendor_yaml.exists():
-            return str(vendor_yaml), "s"
-    return model_arg, None
+            return str(vendor_yaml)
+    return model_arg
+
+
+def resolve_data_yaml(data_path: Path) -> str:
+    resolved_yaml = data_path.resolve()
+    payload = yaml.safe_load(resolved_yaml.read_text(encoding="utf-8"))
+    root = payload.get("path")
+    if isinstance(root, str) and not Path(root).is_absolute():
+        payload["path"] = str((resolved_yaml.parent / root).resolve())
+        tmp = Path(tempfile.gettempdir()) / f"{resolved_yaml.stem}_abs.yaml"
+        tmp.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+        return str(tmp)
+    return str(resolved_yaml)
 
 
 def main() -> None:
@@ -42,10 +56,11 @@ def main() -> None:
             "YOLO package unavailable. Install vendor/yolov13 first: pip install -e vendor/yolov13"
         ) from exc
 
-    model_source, scale_hint = resolve_model(args.model)
+    model_source = resolve_model(args.model)
+    data_source = resolve_data_yaml(args.data)
     model = YOLO(model_source)
     train_kwargs = dict(
-        data=str(args.data),
+        data=data_source,
         epochs=args.epochs,
         batch=args.batch,
         imgsz=args.imgsz,
@@ -55,12 +70,10 @@ def main() -> None:
         workers=args.workers,
         verbose=True,
     )
-    if scale_hint is not None:
-        train_kwargs["scale"] = scale_hint
     train_results = model.train(**train_kwargs)
     print("Train results:", train_results)
 
-    val_results = model.val(data=str(args.data), imgsz=args.imgsz, device=args.device)
+    val_results = model.val(data=data_source, imgsz=args.imgsz, device=args.device)
     print("Val results:", val_results)
 
 

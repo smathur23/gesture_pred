@@ -1,22 +1,28 @@
 from __future__ import annotations
 
 import argparse
+import sys
 import time
 from collections import Counter
 from pathlib import Path
 
 import cv2
 
+if __package__ is None or __package__ == "":
+    sys.path.append(str(Path(__file__).resolve().parents[1]))
+
 from app.config import DEFAULT_CONFIG
 from app.detector import GestureDetector
 from app.gesture_smoother import GestureSmoother
+from app.model_resolver import resolve_model_path
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark webcam gesture inference and stability.")
-    parser.add_argument("--model", type=str, required=True)
+    parser.add_argument("--model", type=str, default=DEFAULT_CONFIG.inference.model_path)
     parser.add_argument("--device", type=str, default="0")
     parser.add_argument("--webcam", type=int, default=0)
+    parser.add_argument("--source", type=str, default=None)
     parser.add_argument("--imgsz", type=int, default=640)
     parser.add_argument("--seconds", type=int, default=30)
     parser.add_argument("--conf", type=float, default=0.4)
@@ -30,13 +36,25 @@ def resolve_device(device_arg: str) -> str | int:
     return int(device_arg) if device_arg.isdigit() else device_arg
 
 
+def parse_source(source_arg: str | None, webcam_index: int) -> str | int:
+    if source_arg is None:
+        return webcam_index
+    return int(source_arg) if source_arg.isdigit() else source_arg
+
+
 def main() -> None:
     args = parse_args()
-    if not Path(args.model).exists():
-        print(f"Warning: model path not found as local file: {args.model}. Continuing in case it's a model alias.")
+    model_path = resolve_model_path(
+        requested_model=args.model,
+        project_root=DEFAULT_CONFIG.paths.project_root,
+        runs_root=DEFAULT_CONFIG.paths.runs_root,
+    )
+    source = parse_source(args.source, args.webcam)
+    print(f"[benchmark] model: {model_path}")
+    print(f"[benchmark] source: {source}")
 
     detector = GestureDetector(
-        model_path=args.model,
+        model_path=str(model_path),
         class_id_to_name=DEFAULT_CONFIG.id_to_class,
         per_class_thresholds=DEFAULT_CONFIG.class_thresholds,
         default_threshold=args.conf,
@@ -50,9 +68,9 @@ def main() -> None:
         ignored_trigger_class="no_gesture",
     )
 
-    cap = cv2.VideoCapture(args.webcam)
+    cap = cv2.VideoCapture(source)
     if not cap.isOpened():
-        raise RuntimeError(f"Unable to open webcam index {args.webcam}")
+        raise RuntimeError(f"Unable to open source: {source}")
 
     t0 = time.perf_counter()
     frame_count = 0
@@ -97,4 +115,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

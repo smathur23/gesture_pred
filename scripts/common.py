@@ -121,7 +121,7 @@ def link_or_copy(src: Path, dst: Path, mode: str = "auto") -> str:
     for attempt in attempts:
         try:
             if attempt == "symlink":
-                os.symlink(src, dst)
+                os.symlink(src.resolve(), dst)
                 return attempt
             if attempt == "hardlink":
                 os.link(src, dst)
@@ -159,4 +159,3 @@ def parse_csv_int_map(items: Sequence[str]) -> Dict[str, int]:
         key, value = item.split("=", maxsplit=1)
         result[key.strip()] = int(value.strip())
     return result
-

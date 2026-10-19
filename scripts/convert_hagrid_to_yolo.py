@@ -8,14 +8,24 @@ from typing import Dict, List, Set
 
 from tqdm import tqdm
 
-from scripts.common import (
-    ensure_dir,
-    find_image_path,
-    iter_annotation_items,
-    link_or_copy,
-    pick_bboxes_for_class,
-    safe_filename,
-)
+try:
+    from scripts.common import (
+        ensure_dir,
+        find_image_path,
+        iter_annotation_items,
+        link_or_copy,
+        pick_bboxes_for_class,
+        safe_filename,
+    )
+except ModuleNotFoundError:
+    from common import (
+        ensure_dir,
+        find_image_path,
+        iter_annotation_items,
+        link_or_copy,
+        pick_bboxes_for_class,
+        safe_filename,
+    )
 
 
 def parse_args() -> argparse.Namespace:

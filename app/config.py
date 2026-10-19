@@ -66,7 +66,7 @@ class InferenceConfig:
     stable_frames_required: int = 6
     trigger_cooldown_sec: float = 1.0
     fps_smoothing_alpha: float = 0.9
-    model_path: str = "yolov13s.pt"
+    model_path: str = "auto"
 
 
 @dataclass
@@ -90,4 +90,3 @@ class AppConfig:
 
 
 DEFAULT_CONFIG = AppConfig()
-

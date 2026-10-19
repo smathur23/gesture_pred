@@ -8,7 +8,10 @@ from typing import Dict, Iterable, List
 
 from tqdm import tqdm
 
-from scripts.common import ensure_dir, find_image_path, iter_annotation_items, pick_bboxes_for_class
+try:
+    from scripts.common import ensure_dir, find_image_path, iter_annotation_items, pick_bboxes_for_class
+except ModuleNotFoundError:
+    from common import ensure_dir, find_image_path, iter_annotation_items, pick_bboxes_for_class
 
 DEFAULT_CLASSES = [
     "like",
@@ -45,10 +48,15 @@ def reservoir_sample_rows(
     max_samples: int,
     rng: random.Random,
     require_image_exists: bool,
+    existing_image_ids: set[str] | None = None,
 ) -> List[dict]:
     reservoir: List[dict] = []
     seen = 0
+    matched_ids: set[str] = set()
     for image_id, row in iter_annotation_items(annotation_path):
+        if require_image_exists and existing_image_ids is not None and image_id not in existing_image_ids:
+            continue
+
         selected_boxes = pick_bboxes_for_class(row, class_name)
         if not selected_boxes:
             continue
@@ -64,14 +72,26 @@ def reservoir_sample_rows(
             "image_exists": bool(image_path is not None),
             "annotation_file": str(annotation_path),
         }
+        if require_image_exists and existing_image_ids is not None:
+            matched_ids.add(image_id)
         seen += 1
         if len(reservoir) < max_samples:
             reservoir.append(candidate)
-            continue
-        j = rng.randint(0, seen - 1)
-        if j < max_samples:
-            reservoir[j] = candidate
+        else:
+            j = rng.randint(0, seen - 1)
+            if j < max_samples:
+                reservoir[j] = candidate
+
+        if require_image_exists and existing_image_ids and len(existing_image_ids) <= max_samples and len(matched_ids) >= len(existing_image_ids):
+            break
     return reservoir
+
+
+def collect_image_ids(images_root: Path, class_name: str) -> set[str]:
+    class_dir = images_root / class_name
+    if not class_dir.exists():
+        return set()
+    return {p.stem for p in class_dir.iterdir() if p.is_file()}
 
 
 def build_manifest(args: argparse.Namespace) -> Iterable[dict]:
@@ -84,6 +104,9 @@ def build_manifest(args: argparse.Namespace) -> Iterable[dict]:
             annotation_path = split_dir / f"{class_name}.json"
             if not annotation_path.exists():
                 continue
+            existing_image_ids = collect_image_ids(args.images, class_name) if args.require_image_exists else None
+            if args.require_image_exists and existing_image_ids is not None and not existing_image_ids:
+                continue
             sampled_rows = reservoir_sample_rows(
                 annotation_path=annotation_path,
                 split=split,
@@ -92,6 +115,7 @@ def build_manifest(args: argparse.Namespace) -> Iterable[dict]:
                 max_samples=args.max_per_class,
                 rng=rng,
                 require_image_exists=args.require_image_exists,
+                existing_image_ids=existing_image_ids,
             )
             for row in sampled_rows:
                 yield row
